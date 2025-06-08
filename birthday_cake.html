@@ -33,20 +33,17 @@
     #cake-wrapper {
       position: relative;
       width: var(--cake-width);
-      height: calc(var(--cake-height) + 30px);
     }
 
     #cake {
-      position: absolute;
-      bottom: 0;
-      left: 0;
+      position: relative;
       width: var(--cake-width);
       height: var(--cake-height);
       background: #d79045;
       border-radius: 0 0 12px 12px;
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15) inset;
-      overflow: hidden;
+      box-shadow: inset 0 8px 20px rgba(0, 0, 0, 0.15);
       cursor: pointer;
+      overflow: visible; /* let flames extend upward */
     }
 
     /* Icing */
@@ -60,7 +57,8 @@
       background: #ffbbdc;
       border-bottom: 10px solid #ff9cd0;
       border-radius: 10px 10px 50% 50%;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) inset;
+      box-shadow: inset 0 4px 6px rgba(0, 0, 0, 0.1);
+      z-index: -1;           /* sits behind candles */
     }
 
     /* Candle */
@@ -68,39 +66,30 @@
       position: absolute;
       width: 8px;
       height: 28px;
-      background: repeating-linear-gradient(
-        45deg,
-        #ffffff 0 4px,
-        #64a6ff 4px 8px
-      );
+      background: repeating-linear-gradient(45deg,#fff 0 4px,#64a6ff 4px 8px);
       border-radius: 2px;
       display: flex;
       justify-content: center;
       align-items: flex-start;
-      top: 12px;                /* keep candle near top of cake */
+      /* x-pos set in JS (left)  |  y-pos set in JS (bottom) */
     }
 
     /* Flame */
     .flame {
       width: 10px;
       height: 16px;
-      background: radial-gradient(circle, #fff8b7 0%, #ffd700 50%, #ff8c00 70%);
+      background: radial-gradient(circle,#fff8b7 0%,#ffd700 50%,#ff8c00 70%);
       border-radius: 50% 50% 50% 50%/60% 60% 40% 40%;
       transform-origin: bottom center;
-      animation: flicker 0.3s infinite alternate ease-in-out;
-      margin-top: -18px;        /* sit on top of candle */
+      margin-top: -18px;      /* sit on candle */
+      animation: flicker .3s infinite alternate ease-in-out;
     }
-
     @keyframes flicker {
-      from { transform: scale(0.95) rotate(-3deg); }
-      to   { transform: scale(1.07) rotate(3deg); }
+      from {transform:scale(.95) rotate(-3deg);}
+      to   {transform:scale(1.07) rotate(3deg);}
     }
 
-    /* Blown-out flame */
-    .extinguished {
-      background: #555;
-      animation: none;
-    }
+    .extinguished {background:#555;animation:none;}
 
     /* Counter */
     #counter-box {
@@ -127,13 +116,13 @@
       border: none;
       border-radius: 6px;
       background: #64a6ff;
-      color: white;
+      color: #fff;
       font-size: 1rem;
       cursor: pointer;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
-      transition: transform 0.15s ease;
+      box-shadow: 0 2px 4px rgba(0,0,0,.12);
+      transition: transform .15s ease;
     }
-    #blow-btn:hover { transform: translateY(-1px); }
+    #blow-btn:hover {transform:translateY(-1px);}
   </style>
 </head>
 <body>
@@ -155,19 +144,17 @@
     const blowBtn  = document.getElementById("blow-btn");
 
     let candleCount = 0;
-    const usedXs = [];          // store existing x-positions to avoid overlap
+    const usedXs = [];                    // track X positions
 
-    function updateCounter() {
-      countBox.value = candleCount;
-    }
+    /* --- candle placement helpers --- */
+    function updateCounter() { countBox.value = candleCount; }
 
-    // pick an x that isn’t too close to existing candles
     function getUniqueX() {
       const cakeW = cake.clientWidth;
       let tries = 0;
-      while (tries < 50) {
-        const x = Math.random() * (cakeW - 16) + 8;      // keep inside edges
-        if (usedXs.every(px => Math.abs(px - x) > 20)) {
+      while (tries < 60) {
+        const x = Math.random() * (cakeW - 16) + 8;       // inside edges
+        if (usedXs.every(px => Math.abs(px - x) > 16)) {  // ≥ 1-candle gap
           usedXs.push(x);
           return x;
         }
@@ -185,7 +172,8 @@
 
       const candle = document.createElement("div");
       candle.className = "candle";
-      candle.style.left = `${getUniqueX() - 4}px`; // center (8px wide)
+      candle.style.left   = `${getUniqueX() - 4}px`;      // center (8px wide)
+      candle.style.bottom = `${cake.clientHeight - 6}px`; // sit on icing
 
       const flame = document.createElement("div");
       flame.className = "flame";
@@ -196,9 +184,10 @@
 
     cake.addEventListener("click", createCandle);
 
-    /* --- blow candles (mic or fallback) --- */
+    /* --- blow-out logic --- */
     function blowCandles() {
-      document.querySelectorAll(".flame").forEach(f => f.classList.add("extinguished"));
+      document.querySelectorAll(".flame")
+              .forEach(f => f.classList.add("extinguished"));
     }
 
     async function initMicBlow() {
@@ -209,11 +198,10 @@
         const analyser = ctx.createAnalyser();
         analyser.fftSize = 2048;
         const data = new Uint8Array(analyser.fftSize);
-
         ctx.createMediaStreamSource(stream).connect(analyser);
 
         let triggered = false;
-        const check = () => {
+        const loop = () => {
           analyser.getByteTimeDomainData(data);
           let sum = 0;
           for (let i = 0; i < data.length; i++) {
@@ -221,10 +209,10 @@
             sum += v * v;
           }
           const rms = Math.sqrt(sum / data.length) / 128;
-          if (rms > 0.25 && !triggered) { triggered = true; blowCandles(); }
-          requestAnimationFrame(check);
+          if (rms > 0.22 && !triggered) { triggered = true; blowCandles(); }
+          requestAnimationFrame(loop);
         };
-        check();
+        loop();
       } catch {
         blowBtn.hidden = false;
         blowBtn.addEventListener("click", blowCandles);
