@@ -8,7 +8,7 @@ A playful single-page web gift: click anywhere to drop candles, watch the live c
 
 ### 🚀 Demo
 
-https://neginae.github.io/Birthday-Cake/final birthday_cake.html
+https://neginae.github.io/Birthday-Cake/final.html
 
 ⸻
 
