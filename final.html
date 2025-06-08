@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Happy Birthday!</title>
+  <style>
+    :root {
+      --cake-width: 320px;
+      --cake-height: 160px;
+    }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background: radial-gradient(circle at top, #ffe0ea 0%, #ffd4e0 40%, #ffffff 100%);
+      user-select: none;
+    }
+
+    h1 {
+      margin-bottom: 0.75rem;
+      color: #ff5d9e;
+      text-shadow: 0 3px 4px rgba(0,0,0,0.15);
+      font-size: 2.2rem;
+    }
+
+    /* ---------- Cake ---------- */
+    #cake-wrapper { width: var(--cake-width); position: relative; }
+
+    #cake {
+      position: relative;
+      width: var(--cake-width);
+      height: var(--cake-height);
+      background: #d79045;
+      border-radius: 0 0 12px 12px;
+      box-shadow: inset 0 8px 20px rgba(0,0,0,0.15);
+      cursor: pointer;
+      overflow: visible;           /* let flames extend upward */
+    }
+
+    /* Icing (pink layer) */
+    #cake::before {
+      content: "";
+      position: absolute;
+      top: -30px;                 /* sits 30 px above cake top */
+      left: 0;
+      width: 100%;
+      height: 50px;
+      background: #ffbbdc;
+      border-bottom: 10px solid #ff9cd0;
+      border-radius: 10px 10px 50% 50%;
+      box-shadow: inset 0 4px 6px rgba(0,0,0,0.10);
+      z-index: -1;                /* keep behind candles */
+    }
+
+    /* ---------- Candle & Flame ---------- */
+    .candle {
+      position: absolute;
+      width: 8px;
+      height: 28px;
+      background: repeating-linear-gradient(45deg,#ffffff 0 4px,#64a6ff 4px 8px);
+      border-radius: 2px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      top: -12px;                 /* 🔑 places candle ON icing */
+    }
+
+    .flame {
+      width: 10px;
+      height: 16px;
+      background: radial-gradient(circle,#fff8b7 0%,#ffd700 50%,#ff8c00 70%);
+      border-radius: 50% 50% 50% 50%/60% 60% 40% 40%;
+      transform-origin: bottom center;
+      margin-top: -18px;          /* sit on candle */
+      animation: flicker .3s infinite alternate ease-in-out;
+    }
+    @keyframes flicker {
+      from { transform:scale(.95) rotate(-3deg); }
+      to   { transform:scale(1.07) rotate(3deg); }
+    }
+    .extinguished { background:#555; animation:none; }
+
+    /* ---------- Counter & Blow Button ---------- */
+    #counter-box {
+      margin-top: 1.2rem;
+      font-size: 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+    }
+    #count {
+      width: 70px;
+      text-align: center;
+      font-size: 1.15rem;
+      padding: 0.25rem 0.5rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background: #f7f7f7;
+    }
+    #blow-btn {
+      margin-left: 1rem;
+      padding: 0.45rem 1rem;
+      border: none;
+      border-radius: 6px;
+      background: #64a6ff;
+      color: #fff;
+      font-size: 1rem;
+      cursor: pointer;
+      box-shadow: 0 2px 4px rgba(0,0,0,.12);
+      transition: transform .15s ease;
+    }
+    #blow-btn:hover { transform: translateY(-1px); }
+  </style>
+</head>
+<body>
+  <h1>🎂 Happy Birthday! 🎂</h1>
+
+  <div id="cake-wrapper">
+    <div id="cake" title="Tap anywhere to add a candle"></div>
+  </div>
+
+  <div id="counter-box">
+    Candles on cake:
+    <input id="count" readonly value="0" />
+    <button id="blow-btn" hidden>Blow!</button>
+  </div>
+
+  <script>
+    const cake     = document.getElementById("cake");
+    const countBox = document.getElementById("count");
+    const blowBtn  = document.getElementById("blow-btn");
+
+    /* ------------ candle placement rules ------------ */
+    const MIN_GAP = 16;                 // ≥ width of a candle
+    const usedXs  = [];                 // track x-positions
+    let candleCount = 0;
+
+    function updateCounter() { countBox.value = candleCount; }
+
+    function getUniqueX() {
+      const cakeW = cake.clientWidth;
+      let tries = 0;
+      while (tries < 80) {
+        const x = Math.random() * (cakeW - 2*MIN_GAP) + MIN_GAP;  // keep inside edges
+        if (usedXs.every(px => Math.abs(px - x) > MIN_GAP)) {
+          usedXs.push(x);
+          return x;
+        }
+        tries++;
+      }
+      // if crowded, just place any
+      const fallback = Math.random() * (cakeW - 2*MIN_GAP) + MIN_GAP;
+      usedXs.push(fallback);
+      return fallback;
+    }
+
+    function createCandle() {
+      candleCount++;
+      updateCounter();
+
+      const candle = document.createElement("div");
+      candle.className  = "candle";
+      candle.style.left = `${getUniqueX() - 4}px`;        // centre (8 px wide)
+
+      const flame = document.createElement("div");
+      flame.className = "flame";
+      candle.appendChild(flame);
+
+      cake.appendChild(candle);
+    }
+
+    cake.addEventListener("click", createCandle);
+
+    /* ------------ blow-out logic ------------ */
+    function blowCandles() {
+      document.querySelectorAll(".flame")
+              .forEach(f => f.classList.add("extinguished"));
+    }
+
+    async function initMicBlow() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        const ctx      = new AudioCtx();
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 2048;
+        const data = new Uint8Array(analyser.fftSize);
+
+        ctx.createMediaStreamSource(stream).connect(analyser);
+
+        let triggered = false;
+        const loop = () => {
+          analyser.getByteTimeDomainData(data);
+          let sum = 0;
+          for (let i=0;i<data.length;i++){ const v=data[i]-128; sum+=v*v; }
+          const rms = Math.sqrt(sum/data.length)/128;
+          if (rms > 0.22 && !triggered) { triggered = true; blowCandles(); }
+          requestAnimationFrame(loop);
+        };
+        loop();
+      } catch {
+        blowBtn.hidden = false;
+        blowBtn.addEventListener("click", blowCandles);
+      }
+    }
+
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      initMicBlow();
+    } else {
+      blowBtn.hidden = false;
+      blowBtn.addEventListener("click", blowCandles);
+    }
+  </script>
+</body>
+</html>
