@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Happy Birthday!</title>
+  <style>
+    :root {
+      --cake-width: 320px;
+      --cake-height: 160px;
+    }
+
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background: radial-gradient(circle at top, #ffe0ea 0%, #ffd4e0 40%, #fff 100%);
+    }
+
+    h1 {
+      margin-bottom: 0.5rem;
+      color: #ff5d9e;
+      text-shadow: 0 2px 2px rgba(0, 0, 0, 0.15);
+    }
+
+    #cake-wrapper {
+      position: relative;
+      width: var(--cake-width);
+      height: calc(var(--cake-height) + 30px);
+    }
+
+    #cake {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: var(--cake-width);
+      height: var(--cake-height);
+      background: #d79045;
+      border-radius: 0 0 12px 12px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15) inset;
+      overflow: hidden;
+      cursor: pointer;
+    }
+
+    /* Icing */
+    #cake::before {
+      content: "";
+      position: absolute;
+      top: -30px;
+      left: 0;
+      width: 100%;
+      height: 50px;
+      background: #ffbbdc;
+      border-bottom: 10px solid #ff9cd0;
+      border-radius: 10px 10px 50% 50%;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) inset;
+    }
+
+    /* Candle base */
+    .candle {
+      position: absolute;
+      width: 8px;
+      height: 28px;
+      background: repeating-linear-gradient(
+        45deg,
+        #ffffff 0 4px,
+        #64a6ff 4px 8px
+      );
+      border-radius: 2px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+    }
+
+    /* Flame */
+    .flame {
+      width: 10px;
+      height: 16px;
+      background: radial-gradient(circle, #fff8b7 0%, #ffd700 50%, #ff8c00 70%);
+      border-radius: 50% 50% 50% 50%/60% 60% 40% 40%;
+      transform-origin: bottom center;
+      animation: flicker 0.3s infinite alternate ease-in-out;
+      margin-top: -18px; /* sit on top */
+    }
+
+    @keyframes flicker {
+      from {
+        transform: scale(0.95) rotate(-2deg);
+      }
+      to {
+        transform: scale(1.05) rotate(2deg);
+      }
+    }
+
+    /* Blown-out flame */
+    .extinguished {
+      background: #555;
+      animation: none;
+    }
+
+    /* Counter */
+    #counter-box {
+      margin-top: 1rem;
+      font-size: 1.2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    #count {
+      width: 60px;
+      text-align: center;
+      font-size: 1.1rem;
+      padding: 0.25rem 0.5rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background: #f7f7f7;
+    }
+
+    /* Blow button fallback */
+    #blow-btn {
+      margin-left: 1rem;
+      padding: 0.4rem 0.9rem;
+      border: none;
+      border-radius: 6px;
+      background: #64a6ff;
+      color: white;
+      font-size: 0.95rem;
+      cursor: pointer;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
+      transition: transform 0.15s ease;
+    }
+    #blow-btn:hover {
+      transform: translateY(-1px);
+    }
+  </style>
+</head>
+<body>
+  <h1>🎂 Happy Birthday! 🎂</h1>
+
+  <div id="cake-wrapper">
+    <div id="cake" title="Tap to add candles"></div>
+  </div>
+
+  <div id="counter-box">
+    Candles on cake:
+    <input id="count" readonly value="0" />
+    <button id="blow-btn" hidden>Blow!</button>
+  </div>
+
+  <script>
+    const cake = document.getElementById("cake");
+    const countBox = document.getElementById("count");
+    const blowBtn = document.getElementById("blow-btn");
+    let candleCount = 0;
+
+    function updateCounter() {
+      countBox.value = candleCount;
+    }
+
+    function createCandle(x) {
+      candleCount++;
+      updateCounter();
+
+      const candle = document.createElement("div");
+      candle.className = "candle";
+      candle.style.left = `${x - 4}px`; // center candle (8px width)
+      candle.style.bottom = `${Math.random() * 8 + 4}px`;
+
+      const flame = document.createElement("div");
+      flame.className = "flame";
+      candle.appendChild(flame);
+
+      cake.appendChild(candle);
+    }
+
+    cake.addEventListener("click", (e) => {
+      const rect = cake.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      createCandle(x);
+    });
+
+    /* --- Blowing out candles with mic or fallback --- */
+
+    function blowCandles() {
+      document.querySelectorAll(".flame").forEach((flame) => {
+        flame.classList.add("extinguished");
+      });
+    }
+
+    async function initMicBlow() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const audioCtx = new AudioContext();
+        const analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 2048;
+        const dataArray = new Uint8Array(analyser.fftSize);
+
+        const source = audioCtx.createMediaStreamSource(stream);
+        source.connect(analyser);
+
+        let blowTriggered = false;
+        function checkVolume() {
+          analyser.getByteTimeDomainData(dataArray);
+          // Compute rough RMS
+          let sum = 0;
+          for (let i = 0; i < dataArray.length; i++) {
+            const val = dataArray[i] - 128;
+            sum += val * val;
+          }
+          const rms = Math.sqrt(sum / dataArray.length) / 128;
+
+          if (rms > 0.25 && !blowTriggered) {
+            blowTriggered = true;
+            blowCandles();
+          }
+          requestAnimationFrame(checkVolume);
+        }
+        checkVolume();
+      } catch (err) {
+        // Mic permission denied or unsupported – show manual button
+        blowBtn.hidden = false;
+        blowBtn.addEventListener("click", blowCandles);
+      }
+    }
+
+    // Only init mic if supported & served over HTTPS (GitHub Pages is HTTPS)
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      initMicBlow();
+    } else {
+      blowBtn.hidden = false;
+      blowBtn.addEventListener("click", blowCandles);
+    }
+  </script>
+</body>
+</html>
